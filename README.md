@@ -1,11 +1,12 @@
 # Isotope
 
-A command line utility for [TJHSST's Ion](https://ion.tjhsst.edu).
+A command line utility for [TJHSST's Ion](https://ion.tjhsst.edu).  
 
 It supports listing of signups, lookups of activities, signing up for activities,
 viewing the schedule, and viewing the FCPS emergency message status.
-It uses concurrent REST requests to speed up API calls.
-Colored output is done via [pretty-simple](https://hackage.haskell.org/package/pretty-simple)
+It uses concurrent REST requests to speed up API calls.  
+Colored output is done via [pretty-simple](https://hackage.haskell.org/package/pretty-simple).  
+
 [Asciinema demo with full colored output](https://asciinema.org/a/239358)
 
 
