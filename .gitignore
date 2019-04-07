@@ -1,0 +1,6 @@
+.stack-work/
+src/Credentials.hs
+test.cabal
+.idea
+.vscode
+*~
