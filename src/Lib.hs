@@ -1,5 +1,3 @@
-{-# LANGUAGE DisambiguateRecordFields #-}
-{-# LANGUAGE DuplicateRecordFields    #-}
 {-# LANGUAGE OverloadedStrings        #-}
 
 module Lib
