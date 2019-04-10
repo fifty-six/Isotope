@@ -86,7 +86,7 @@ instance ToJSON Activity
 
 data SignupActivity =
     SignupActivity { signupActivity_title :: String
-                   , signupActivity_id    :: Int
+                   , signupActivity_id    :: Integer
                    } deriving (Show, Generic)
 
 instance FromJSON SignupActivity where
@@ -96,8 +96,8 @@ data Signup =
     Signup { signup_id                 :: Integer
            , signup_block              :: Block
            , signup_activity           :: SignupActivity
-           , signup_scheduled_activity :: Int
-           , signup_user               :: Int
+           , signup_scheduled_activity :: Integer
+           , signup_user               :: Integer
            } deriving (Show, Generic)
 
 instance FromJSON Signup where

@@ -45,19 +45,19 @@ getResponseBody url = (^. responseBody) <$> (asJSON =<< getWith opts url)
     where opts = defaults & auth ?~ basicAuth username pass
 
 -- | Fetched signed up activities for user.
-fetchSignedUp :: IO [String]
+fetchSignedUp :: IO [Integer]
 fetchSignedUp = do
     day <- today
     signups <- getResponseBody signupUrl :: IO [Signup]
     let minDay = minimum . filter (>= 0) . map (deltaDay day) $ signups
-    return . map (signupActivity_title . signup_activity) . filter ((== minDay) . deltaDay day) $ signups
+    return . map (signupActivity_id . signup_activity) . filter ((== minDay) . deltaDay day) $ signups
 
 -- | Fetch signed up activities for user and then pair them with respective rooms.
 fetchSignedUpInfo :: IO [String]
 fetchSignedUpInfo = do
     concurrentTuple <- concurrently fetchSignedUp fetchActivities
     let (signedUp, activities) = concurrentTuple
-    return (show . findActivity activities <$> signedUp)
+    return (show . findActivityById activities <$> signedUp)
 
 -- | Find the difference in days from given day and signup block day.
 deltaDay :: Day -> Signup -> Integer
@@ -82,19 +82,22 @@ signup blockType activity = do
     let block = case blockType of
             A -> head blocks
             B -> blocks !! 1
-    fetched <- fetchBlockActivities block
-    let found = findActivity fetched activity
+    activities <- fetchBlockActivities block
+    let found = findActivityFuzzy activities activity
     _ <- postWith opts signupUrl ["block" := block_id block, "activity" := aid found]
     return $ "Signed up for " ++ name found
     where opts = defaults & auth ?~ basicAuth username pass
 
 -- | Given fuzzy pattern for activity, return best matching activity (if any)
 getActivity :: String -> IO Activity
-getActivity = (??) (findActivity <$> fetchActivities)
+getActivity = (??) (findActivityFuzzy <$> fetchActivities)
+
+findActivityById :: [Activity] -> Integer -> Activity
+findActivityById activities activityId = head $ filter ((==) activityId . aid) activities
 
 -- | Given list of activities and fuzzy pattern for activity, return best matching activity (if any)
-findActivity :: [Activity] -> String -> Activity
-findActivity activities activity = Fuzzy.original $ head $
+findActivityFuzzy :: [Activity] -> String -> Activity
+findActivityFuzzy activities activity = Fuzzy.original $ head $
     Fuzzy.filter
     activity      -- ^ Pattern
     activities    -- ^ List
