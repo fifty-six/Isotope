@@ -3,13 +3,14 @@
 
 module DataType where
 
-import           Control.Exception
-import           Data.Aeson
-import           Data.Aeson.Types
-import           Data.Map           (Map)
-import           Data.String
-import           Data.Time.Calendar
-import           GHC.Generics
+import Control.Exception
+import Data.Aeson
+import Data.Aeson.Types
+import Data.ByteString (ByteString)
+import Data.Map           (Map)
+import Data.String
+import Data.Time.Calendar
+import GHC.Generics
 
 -- | Strip prefix for usage in FromJSON.
 removePrefix :: String      -- ^ Prefix to strip
@@ -22,9 +23,15 @@ removePrefix prefix exceptions field
 
 parseWithPrefix :: (Generic a, GFromJSON Zero (Rep a)) => String -> [String] -> Value -> Parser a
 parseWithPrefix prefix exceptions = genericParseJSON
-    defaultOptions {
+    defaultOptions 
+    {
          fieldLabelModifier = removePrefix prefix exceptions
     }
+
+data Credentials =
+    Credentials { cred_un       :: ByteString
+                , cred_pass     :: ByteString
+                }
 
 data BlockInput = A | B
     deriving (Show)

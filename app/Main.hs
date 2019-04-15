@@ -1,9 +1,31 @@
+{-# LANGUAGE NamedFieldPuns           #-}
+{-# LANGUAGE OverloadedStrings        #-}
+
 module Main where
 
+import Control.Exception
+import Control.Lens.Operators
+import Data.ByteString (ByteString)
+import Data.Configurator
+import Data.String
 import DataType
 import Lib
 import Options.Applicative
+import System.Directory
 import Text.Pretty.Simple
+
+data NoConfigException = NoConfigException
+
+instance Show NoConfigException where
+    show ex = "Config file doesn't exist."
+
+instance Exception NoConfigException
+
+data Options = 
+    Options { configFile :: Maybe FilePath
+            , subcommand :: Command
+            }
+            deriving (Show)
 
 data Command =
     CheckSignups         |
@@ -32,56 +54,86 @@ parseBlock = argument
             <> help "Block to signup for"
         )
 
+parseConfig :: Parser (Maybe FilePath)
+parseConfig = 
+        optional $ strOption (
+            long "config-file"
+            <> short 'c'
+            <> help "Filepath of config"
+            <> showDefault
+        )
+
 parseCommand :: Parser Command
 parseCommand = subparser $
     command
         "signups"
         (info
-            (helper <*> pure CheckSignups)
+            (helper ?? CheckSignups)
             (fullDesc <> progDesc "List signups.")
         )
     <>
     command
         "location"
         (info
-            (helper <*> fmap CheckActivityLocation parseActivity)
+            (helper <*> (CheckActivityLocation <$> parseActivity))
             (fullDesc <> progDesc "Get location of activity given name")
         )
     <>
     command
         "signup"
         (info
-            (helper <*> liftA2 SignupBlock parseBlock parseActivity)
+            (helper <*> (SignupBlock <$> parseBlock <*> parseActivity))
             (fullDesc <> progDesc "Signup for activity given block and name")
         )
     <>
     command
         "schedule"
         (info
-            (helper <*> pure GetSchedule)
+            (helper ?? GetSchedule)
             (fullDesc <> progDesc "Display schedule for today or next available day.")
         )
     <>
     command
         "emergency"
         (info
-            (helper <*> pure GetEmergencyMessages)
+            (helper ?? GetEmergencyMessages)
             (fullDesc <> progDesc "Display emergency status and message if there is any.")
         )
+
+parseOptions = Options <$> parseConfig <*> parseCommand
 
 showHelpOnErrorExecParser :: ParserInfo a -> IO a
 showHelpOnErrorExecParser = customExecParser (prefs showHelpOnError)
 
+guard :: Exception a => Bool -> a -> IO ()
+guard bool ex = if bool then return () else throw ex
+
 main :: IO ()
 main = do
-    commandType <- showHelpOnErrorExecParser (info (helper <*> parseCommand)
+    options <- showHelpOnErrorExecParser (info (helper <*> parseOptions)
                     (fullDesc <>
                     progDesc "Use isotope to manage Ion 8th period activities." <>
                     header "Isotope: Ion CLI"))
 
+    let commandType = subcommand options
+
+    configPath <- case configFile options of
+        Nothing -> getXdgDirectory XdgConfig "isotope/config"
+        Just a  -> return $ fromString a
+
+    configExists <- doesFileExist configPath
+
+    guard configExists NoConfigException
+
+    config <- load [ Required configPath ]
+    un     <- require config "username" :: IO ByteString
+    pass   <- require config "password" :: IO ByteString
+
+    let cred = Credentials { cred_un = un, cred_pass = pass }
+
     case commandType of
-        CheckSignups -> pPrint =<< fetchSignedUpInfo
-        CheckActivityLocation activity_name -> pPrint =<< getActivity activity_name
-        SignupBlock block_type activity_name -> pPrint =<< signup block_type activity_name
-        GetSchedule -> pPrint =<< getSchedule
-        GetEmergencyMessages -> pPrint =<< getEmergencyMessage
+        CheckSignups -> pPrint =<< fetchSignedUpInfo cred
+        CheckActivityLocation activity_name -> pPrint =<< getActivity cred activity_name
+        SignupBlock block_type activity_name -> pPrint =<< signup cred block_type activity_name
+        GetSchedule -> pPrint =<< getSchedule cred
+        GetEmergencyMessages -> pPrint =<< getEmergencyMessage cred

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 96e000461b7bd269e0b074a5b3b0884402ed65ba65b140234b3441dadfc1bd95
+-- hash: 8e52e68fa91279be680527e6c5b4cd8dadb972162100ea740737362622524f55
 
 name:           isotope
 version:        0.1.0.0
@@ -27,7 +27,6 @@ source-repository head
 
 library
   exposed-modules:
-      Credentials
       DataType
       Lib
   other-modules:
@@ -40,7 +39,9 @@ library
     , async
     , base >=4.7 && <5
     , bytestring
+    , configurator
     , containers
+    , directory
     , fuzzy
     , lens
     , lens-aeson
@@ -63,7 +64,9 @@ executable isotope
     , async
     , base >=4.7 && <5
     , bytestring
+    , configurator
     , containers
+    , directory
     , fuzzy
     , isotope
     , lens
@@ -88,7 +91,9 @@ test-suite isotope-test
     , async
     , base >=4.7 && <5
     , bytestring
+    , configurator
     , containers
+    , directory
     , fuzzy
     , isotope
     , lens

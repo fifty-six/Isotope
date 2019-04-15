@@ -33,6 +33,8 @@ dependencies:
 - optparse-applicative
 - async
 - fuzzy 
+- directory
+- configurator
 
 library:
   source-dirs: src

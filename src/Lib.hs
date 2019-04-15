@@ -10,7 +10,6 @@ module Lib
 
 import           Control.Concurrent.Async
 import           Control.Lens.Operators
-import           Credentials
 import           Data.Aeson
 import qualified Data.Map                      as Map
 import           Data.Time.Calendar
@@ -40,22 +39,22 @@ emergencyUrl :: String
 emergencyUrl = "https://ion.tjhsst.edu/api/emerg?format=json"
 
 -- | Get response body of GET request with basicAuth.
-getResponseBody :: FromJSON a => String -> IO a
-getResponseBody url = (^. responseBody) <$> (asJSON =<< getWith opts url)
-    where opts = defaults & auth ?~ basicAuth username pass
+getResponseBody :: FromJSON a => Credentials -> String -> IO a
+getResponseBody cred url = (^. responseBody) <$> (asJSON =<< getWith opts url)
+    where opts = defaults & auth ?~ basicAuth (cred_un cred) (cred_pass cred)
 
 -- | Fetched signed up activities for user.
-fetchSignedUp :: IO [Integer]
-fetchSignedUp = do
+fetchSignedUp :: Credentials -> IO [Integer]
+fetchSignedUp cred = do
     day <- today
-    signups <- getResponseBody signupUrl :: IO [Signup]
+    signups <- getResponseBody cred signupUrl :: IO [Signup]
     let minDay = minimum . filter (>= 0) . map (deltaDay day) $ signups
     return . map (signupActivity_id . signup_activity) . filter ((== minDay) . deltaDay day) $ signups
 
 -- | Fetch signed up activities for user and then pair them with respective rooms.
-fetchSignedUpInfo :: IO [String]
-fetchSignedUpInfo = do
-    concurrentTuple <- concurrently fetchSignedUp fetchActivities
+fetchSignedUpInfo :: Credentials -> IO [String]
+fetchSignedUpInfo cred = do
+    concurrentTuple <- concurrently (fetchSignedUp cred) (fetchActivities cred)
     let (signedUp, activities) = concurrentTuple
     return (show . findActivityById activities <$> signedUp)
 
@@ -64,33 +63,33 @@ deltaDay :: Day -> Signup -> Integer
 deltaDay day x = diffDays (block_date $ signup_block x) day
 
 -- | Fetch list of blocks after today.
-fetchBlocks :: IO [Block]
-fetchBlocks = blocks_results <$> (getResponseBody =<< blocksUrl)
+fetchBlocks :: Credentials -> IO [Block]
+fetchBlocks cred = blocks_results <$> (getResponseBody cred =<< blocksUrl)
 
 -- | Given a block, get respective activities for block.
-fetchBlockActivities :: Block -> IO [Activity]
-fetchBlockActivities block = Map.foldr (:) [] . activities_activities <$> getResponseBody (block_url block)
+fetchBlockActivities :: Credentials -> Block -> IO [Activity]
+fetchBlockActivities cred block = Map.foldr (:) [] . activities_activities <$> getResponseBody cred (block_url block)
 
 -- | Fetch activities for one day (2 blocks [A and B])
-fetchActivities :: IO [Activity]
-fetchActivities = fmap concat (mapConcurrently fetchBlockActivities =<< take 2 <$> fetchBlocks)
+fetchActivities :: Credentials -> IO [Activity]
+fetchActivities cred = fmap concat (mapConcurrently (fetchBlockActivities cred) =<< take 2 <$> fetchBlocks cred)
 
 -- | Signup user for activity on given block. Return name of found activity (fuzzy matching)
-signup :: BlockInput -> String -> IO String
-signup blockType activity = do
-    blocks <- fetchBlocks
+signup :: Credentials -> BlockInput -> String -> IO String
+signup cred blockType activity = do
+    blocks <- fetchBlocks cred
     let block = case blockType of
             A -> head blocks
             B -> blocks !! 1
-    activities <- fetchBlockActivities block
+    activities <- fetchBlockActivities cred block
     let found = findActivityFuzzy activities activity
     _ <- postWith opts signupUrl ["block" := block_id block, "activity" := aid found]
     return $ "Signed up for " ++ name found
-    where opts = defaults & auth ?~ basicAuth username pass
+    where opts = defaults & auth ?~ basicAuth (cred_un cred) (cred_pass cred)
 
 -- | Given fuzzy pattern for activity, return best matching activity (if any)
-getActivity :: String -> IO Activity
-getActivity = (??) (findActivityFuzzy <$> fetchActivities)
+getActivity :: Credentials -> String -> IO Activity
+getActivity cred = (??) (findActivityFuzzy <$> fetchActivities cred)
 
 findActivityById :: [Activity] -> Integer -> Activity
 findActivityById activities activityId = head $ filter ((==) activityId . aid) activities
@@ -107,9 +106,9 @@ findActivityFuzzy activities activity = Fuzzy.original $ head $
     False         -- ^ Case-insensitive
 
 -- | Get schedule for current or next day if current day is not a school day.
-getSchedule :: IO Schedule
-getSchedule = scheduleResult_day_type . head . scheduleResponse_results <$> getResponseBody scheduleUrl
+getSchedule :: Credentials -> IO Schedule
+getSchedule cred = scheduleResult_day_type . head . scheduleResponse_results <$> getResponseBody cred scheduleUrl
 
 -- | Get emergency message if there is any.
-getEmergencyMessage :: IO EmergencyMessage
-getEmergencyMessage = getResponseBody emergencyUrl
+getEmergencyMessage :: Credentials -> IO EmergencyMessage
+getEmergencyMessage cred = getResponseBody cred emergencyUrl
