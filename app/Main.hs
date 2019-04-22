@@ -5,6 +5,7 @@ module Main where
 
 import Control.Exception
 import Control.Lens.Operators
+import Control.Monad
 import Data.ByteString (ByteString)
 import Data.Configurator
 import Data.String
@@ -17,7 +18,7 @@ import Text.Pretty.Simple
 data NoConfigException = NoConfigException
 
 instance Show NoConfigException where
-    show ex = "Config file doesn't exist."
+    show _ = "Config file doesn't exist."
 
 instance Exception NoConfigException
 
@@ -100,13 +101,11 @@ parseCommand = subparser $
             (fullDesc <> progDesc "Display emergency status and message if there is any.")
         )
 
+parseOptions :: Parser Options
 parseOptions = Options <$> parseConfig <*> parseCommand
 
 showHelpOnErrorExecParser :: ParserInfo a -> IO a
 showHelpOnErrorExecParser = customExecParser (prefs showHelpOnError)
-
-guard :: Exception a => Bool -> a -> IO ()
-guard bool ex = if bool then return () else throw ex
 
 main :: IO ()
 main = do
@@ -123,7 +122,7 @@ main = do
 
     configExists <- doesFileExist configPath
 
-    guard configExists NoConfigException
+    unless configExists (throw NoConfigException)
 
     config <- load [ Required configPath ]
     un     <- require config "username" :: IO ByteString

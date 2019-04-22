@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 8e52e68fa91279be680527e6c5b4cd8dadb972162100ea740737362622524f55
+-- hash: bc4943331165b71627c17ec032c20cfe754fe979355664bb10971031f7d63fa6
 
 name:           isotope
 version:        0.1.0.0
@@ -27,6 +27,7 @@ source-repository head
 
 library
   exposed-modules:
+      Credentials
       DataType
       Lib
   other-modules:
