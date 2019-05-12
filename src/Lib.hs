@@ -12,6 +12,7 @@ import           Control.Concurrent.Async
 import           Control.Lens.Operators
 import           Data.Aeson
 import qualified Data.Map                      as Map
+import           Data.List
 import           Data.Time.Calendar
 import           Data.Time.Clock
 import           DataType
@@ -64,7 +65,7 @@ deltaDay day x = diffDays (block_date $ signup_block x) day
 
 -- | Fetch list of blocks after today.
 fetchBlocks :: Credentials -> IO [Block]
-fetchBlocks cred = blocks_results <$> (getResponseBody cred =<< blocksUrl)
+fetchBlocks cred = sortOn block_date . blocks_results <$> (getResponseBody cred =<< blocksUrl)
 
 -- | Given a block, get respective activities for block.
 fetchBlockActivities :: Credentials -> Block -> IO [Activity]
